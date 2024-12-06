@@ -4,15 +4,6 @@
 
 ---
 
-## 📸 Preview
-
-<div align="center">
-  <img src="images/smart_led.png" alt="Smart LED" width="200">
-  <img src="images/smart_remote.png" alt="Remote Control" width="200">
-</div>
-
----
-
 ## 🛠️ Features
 
 - **Smart LED Control**:  
@@ -20,7 +11,7 @@
   - Automatic mode based on ambient light.  
 
 - **Remote Control**:  
-  - Buttons for ON, OFF, AUTO, Brightness Up, and Brightness Down.  
+  - Buttons for ON and OFF (only 2 buttons used due to constraints).  
   - BLE communication with the Smart LED.  
 
 - **BLE Integration**:  
@@ -43,8 +34,8 @@
 - **Central Device**:  
   - Sends commands to the Smart LED via BLE.  
 - **Hardware Requirements**:  
-  - 5 buttons for control:  
-    - ON (`2`), OFF (`3`), AUTO (`4`), UP (`5`), DOWN (`6`)
+  - 2 buttons for control (ON and OFF):  
+    - ON (`2`), OFF (`3`)
 
 ---
 
@@ -54,9 +45,6 @@
 |-------------------|--------------|----------------------------|
 | OFF              | `0`          | Turn off LED              |
 | ON               | `1`          | Turn on LED               |
-| AUTO             | `2`          | Enable automatic mode     |
-| Brightness UP    | `10 + (current brightness + 1)` | Increase brightness |
-| Brightness DOWN  | `10 + (current brightness - 1)` | Decrease brightness |
 
 ---
 
@@ -66,13 +54,9 @@
    - Remote sends `1` to the LED via BLE.  
    - LED turns on.
 
-2. **Enable AUTO Mode**  
-   - Remote sends `2`.  
-   - LED toggles based on light sensor readings.
-
-3. **Adjust Brightness**  
-   - Current brightness is `5`.  
-   - Remote sends `16` (`5 + 1 + 10`) for UP, or `14` (`5 - 1 + 10`) for DOWN.  
+2. **Turn LED OFF**  
+   - Remote sends `0`.  
+   - LED turns off.
 
 ---
 
@@ -80,3 +64,10 @@
 
 - `smartled.ino`  
 - `smartledremote.ino`  
+- Note: Only 2 switches (ON and OFF) were implemented due to hardware constraints.
+
+---
+
+## 📸 Preview
+
+<img src="images/smart_led.png" alt="Smart LED" width="400">
