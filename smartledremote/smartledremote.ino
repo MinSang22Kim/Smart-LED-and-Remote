@@ -99,11 +99,11 @@ void controlLED(BLEDevice &peripheral, BLECharacteristic &characteristic) {
       delay(200);                       // 디바운싱 처리
     }
   }
-
+  
   Serial.println("연결이 끊어졌습니다."); // 연결 종료 메시지 출력
 }
 
-// 명령 전송 함수
+// 명령 전송
 void sendCommand(BLECharacteristic &characteristic, String command) {
   characteristic.writeValue(command.c_str()); // BLE Characteristic에 값 전송
   Serial.print("명령 전송: ");
