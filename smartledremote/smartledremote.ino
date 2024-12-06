@@ -11,28 +11,26 @@ int brightness = 0;
 BLEService remoteService("180A"); // 서비스 UUID
 BLECharacteristic remoteCharacteristic("2A57", BLEWrite, 10); // 특성 UUID
 
-bool prevOnState = HIGH;
-bool prevOffState = HIGH;
-bool prevAutoState = HIGH;
-bool prevUpState = HIGH;
-bool prevDownState = HIGH;
-
 void setup() {
   Serial.begin(9600);
   while (!Serial);
 
+  // 버튼 핀 초기화
   pinMode(ON_BUTTON, INPUT_PULLUP);
   pinMode(OFF_BUTTON, INPUT_PULLUP);
   pinMode(AUTO_BUTTON, INPUT_PULLUP);
   pinMode(UP_BUTTON, INPUT_PULLUP);
   pinMode(DOWN_BUTTON, INPUT_PULLUP);
 
+  // BLE 초기화
   if (!BLE.begin()) {
     Serial.println("BLE 초기화 실패!");
     while (1);
   }
 
   Serial.println("BLE 초기화 성공!");
+
+  // BLE Central 시작
   BLE.scanForUuid("180A");
   Serial.println("BLE 스캔 시작...");
 }
@@ -41,10 +39,11 @@ void loop() {
   BLEDevice peripheral = BLE.available();
 
   if (peripheral) {
+    // Peripheral 디바이스 발견
     Serial.print("발견된 디바이스: ");
     Serial.println(peripheral.localName());
 
-    if (peripheral.localName() == "SmartLED") {
+    if (peripheral.localName() == "SmartLED") { // 대상 장치 이름 확인
       Serial.println("SmartLED 연결 시도...");
       BLE.stopScan();
 
@@ -64,53 +63,35 @@ void loop() {
         Serial.println("SmartLED 연결 실패.");
       }
 
-      BLE.scanForUuid("180A");
+      BLE.scanForUuid("180A"); // 재스캔 시작
     }
   }
 }
 
 void controlLED(BLEDevice &peripheral, BLECharacteristic &characteristic) {
   while (peripheral.connected()) {
-    // 버튼의 현재 상태 읽기
-    bool currentOnState = digitalRead(ON_BUTTON);
-    bool currentOffState = digitalRead(OFF_BUTTON);
-    bool currentAutoState = digitalRead(AUTO_BUTTON);
-    bool currentUpState = digitalRead(UP_BUTTON);
-    bool currentDownState = digitalRead(DOWN_BUTTON);
-
-    // ON 버튼 상태 변화 감지
-    if (currentOnState == LOW && prevOnState == HIGH) {
+    if (digitalRead(ON_BUTTON) == LOW) {
       sendCommand(characteristic, "1");
+      delay(200);
     }
-
-    // OFF 버튼 상태 변화 감지
-    if (currentOffState == LOW && prevOffState == HIGH) {
+    if (digitalRead(OFF_BUTTON) == LOW) {
       sendCommand(characteristic, "0");
+      delay(200);
     }
-
-    // AUTO 버튼 상태 변화 감지
-    if (currentAutoState == LOW && prevAutoState == HIGH) {
+    if (digitalRead(AUTO_BUTTON) == LOW) {
       sendCommand(characteristic, "2");
+      delay(200);
     }
-
-    // UP 버튼 상태 변화 감지
-    if (currentUpState == LOW && prevUpState == HIGH) {
+    if (digitalRead(UP_BUTTON) == LOW) {
       if (brightness < 9) brightness++;
       sendCommand(characteristic, "B" + String(brightness));
+      delay(200);
     }
-
-    // DOWN 버튼 상태 변화 감지
-    if (currentDownState == LOW && prevDownState == HIGH) {
+    if (digitalRead(DOWN_BUTTON) == LOW) {
       if (brightness > 0) brightness--;
       sendCommand(characteristic, "B" + String(brightness));
+      delay(200);
     }
-
-    // 이전 상태 갱신
-    prevOnState = currentOnState;
-    prevOffState = currentOffState;
-    prevAutoState = currentAutoState;
-    prevUpState = currentUpState;
-    prevDownState = currentDownState;
   }
 
   Serial.println("연결이 끊어졌습니다.");
