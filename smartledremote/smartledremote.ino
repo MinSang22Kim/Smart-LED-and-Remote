@@ -1,99 +1,104 @@
 #include <ArduinoBLE.h>
 
-#define LED_PIN 2      // LED 핀 (PWM)
-#define LIGHT_SENSOR A2 // 조도 센서 핀
+#define ON_BUTTON 2
+#define OFF_BUTTON 3
+#define AUTO_BUTTON 4
+#define UP_BUTTON 5
+#define DOWN_BUTTON 6
 
-int brightness = 0;       // 밝기 (0~255)
-bool autoMode = false;    // AUTO 모드 여부
-bool ledOn = false;       // LED ON/OFF 상태
+int brightness = 0;
 
-BLEService ledService("180A"); // LED 서비스
-BLEStringCharacteristic ledCharacteristic("2A57", BLERead | BLEWrite, 10); // LED 특성
+BLEService remoteService("180A"); // 서비스 UUID
+BLECharacteristic remoteCharacteristic("2A57", BLEWrite, 10); // 특성 UUID
 
 void setup() {
   Serial.begin(9600);
   while (!Serial);
 
+  // 버튼 핀 초기화
+  pinMode(ON_BUTTON, INPUT_PULLUP);
+  pinMode(OFF_BUTTON, INPUT_PULLUP);
+  pinMode(AUTO_BUTTON, INPUT_PULLUP);
+  pinMode(UP_BUTTON, INPUT_PULLUP);
+  pinMode(DOWN_BUTTON, INPUT_PULLUP);
+
   // BLE 초기화
   if (!BLE.begin()) {
-    Serial.println("Starting BLE failed!");
+    Serial.println("BLE 초기화 실패!");
     while (1);
   }
 
-  BLE.setLocalName("SmartLED");
-  BLE.setAdvertisedService(ledService);
+  Serial.println("BLE 초기화 성공!");
 
-  ledService.addCharacteristic(ledCharacteristic);
-  BLE.addService(ledService);
-
-  ledCharacteristic.writeValue("0");
-
-  BLE.advertise();
-  Serial.println("BLE device is now advertising");
-
-  // LED 핀 및 센서 초기화
-  pinMode(LED_PIN, OUTPUT);
-  analogWrite(LED_PIN, 0);
+  // BLE Central 시작
+  BLE.scanForUuid("180A");
+  Serial.println("BLE 스캔 시작...");
 }
 
 void loop() {
-  // BLE 클라이언트 연결 관리
-  BLEDevice central = BLE.central();
+  BLEDevice peripheral = BLE.available();
 
-  if (central) {
-    Serial.print("Connected to central: ");
-    Serial.println(central.address());
+  if (peripheral) {
+    // Peripheral 디바이스 발견
+    Serial.print("발견된 디바이스: ");
+    Serial.println(peripheral.localName());
 
-    while (central.connected()) {
-      if (ledCharacteristic.written()) {
-        String value = ledCharacteristic.value();
-        handleCommand(value);
-      }
+    if (peripheral.localName() == "SmartLED") { // 대상 장치 이름 확인
+      Serial.println("SmartLED 연결 시도...");
+      BLE.stopScan();
 
-      if (autoMode) {
-        int lightValue = analogRead(LIGHT_SENSOR); // 조도 센서 값 읽기
-        if (lightValue < 500) { // 어두우면 LED 켜기
-          Serial.println(lightValue);
-          delay(100);
-          analogWrite(LED_PIN, brightness);
-          ledOn = true;
-        } else { // 밝으면 LED 끄기
-          Serial.println(lightValue);
-          delay(100);
-          analogWrite(LED_PIN, 0);
-          ledOn = false;
+      if (peripheral.connect()) {
+        Serial.println("SmartLED 연결 성공!");
+        if (peripheral.discoverService("180A")) {
+          BLECharacteristic characteristic = peripheral.characteristic("2A57");
+          if (characteristic) {
+            controlLED(peripheral, characteristic);
+          } else {
+            Serial.println("Characteristic 찾기 실패!");
+          }
+        } else {
+          Serial.println("Service 찾기 실패!");
         }
+      } else {
+        Serial.println("SmartLED 연결 실패.");
       }
-    }
 
-    Serial.print("Disconnected from central: ");
-    Serial.println(central.address());
+      BLE.scanForUuid("180A"); // 재스캔 시작
+    }
   }
 }
 
-void handleCommand(String value) {
-  if (value == "0") {
-    analogWrite(LED_PIN, 0);
-    ledOn = false;
-    autoMode = false;
-    Serial.println("LED OFF");
-  } else if (value == "1") {
-    analogWrite(LED_PIN, brightness);
-    ledOn = true;
-    autoMode = false;
-    Serial.println("LED ON");
-  } else if (value == "2") {
-    autoMode = true;
-    Serial.println("AUTO MODE ON");
-  } else if (value.startsWith("B")) { // 밝기 조정 (B0 ~ B9)
-    int level = value.substring(1).toInt();
-    if (level >= 0 && level <= 9) {
-      brightness = map(level, 0, 9, 0, 255); // 0~9를 0~255로 매핑
-      if (ledOn) {
-        analogWrite(LED_PIN, brightness);
-      }
-      Serial.print("Brightness set to: ");
-      Serial.println(brightness);
+void controlLED(BLEDevice &peripheral, BLECharacteristic &characteristic) {
+  while (peripheral.connected()) {
+    if (digitalRead(ON_BUTTON) == LOW) {
+      sendCommand(characteristic, "1");
+      delay(200);
+    }
+    if (digitalRead(OFF_BUTTON) == LOW) {
+      sendCommand(characteristic, "0");
+      delay(200);
+    }
+    if (digitalRead(AUTO_BUTTON) == LOW) {
+      sendCommand(characteristic, "2");
+      delay(200);
+    }
+    if (digitalRead(UP_BUTTON) == LOW) {
+      if (brightness < 9) brightness++;
+      sendCommand(characteristic, "B" + String(brightness));
+      delay(200);
+    }
+    if (digitalRead(DOWN_BUTTON) == LOW) {
+      if (brightness > 0) brightness--;
+      sendCommand(characteristic, "B" + String(brightness));
+      delay(200);
     }
   }
+
+  Serial.println("연결이 끊어졌습니다.");
+}
+
+void sendCommand(BLECharacteristic &characteristic, String command) {
+  characteristic.writeValue(command.c_str());
+  Serial.print("명령 전송: ");
+  Serial.println(command);
 }
